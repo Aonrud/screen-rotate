@@ -1,0 +1,81 @@
+#!/bin/bash
+
+function rotate {
+
+    SCREEN="eDP-1"
+    #Input devices
+    XINPUT=("Wacom Pen and multitouch sensor Finger")
+    #"Wacom Pen and multitouch sensor Pen Pen (0x9cd1aed8)" - if using XINPUT for stylus
+    WACOM=("Wacom Pen and multitouch sensor Pen stylus"
+        "Wacom Pen and multitouch sensor Pen eraser")
+    O_NAMES=("normal" "right" "inverted" "left")
+    COORDS=("1, 0, 0, 0, 1, 0, 0, 0, 1" "0, 1, 0, -1, 0, 1, 0, 0, 1" "-1, 0, 1, 0, -1, 1, 0, 0, 1" "0, -1, 1, 1, 0, 0, 0, 0, 1")
+    W_NAMES=("none" "cw" "half" "ccw")
+
+    O_NO=$1
+
+    TARGET_ORIENTATION=${O_NAMES[$O_NO]}
+
+    echo "Rotating to" $TARGET_ORIENTATION
+
+    #Rotate the screen
+    xrandr --output $SCREEN --rotate $TARGET_ORIENTATION
+
+    #Rotate libinput driver input devices
+    for i in "${XINPUT[@]}" 
+    do
+        xinput --set-prop "$i" "Coordinate Transformation Matrix" ${COORDS[$O_NO]}
+    done
+
+    #Rotate Wacom driver input devices
+    for i in "${WACOM[@]}"
+    do
+        xsetwacom set "$i" rotate ${W_NAMES[$O_NO]}
+    done
+
+}
+
+
+NO_RE='^[0-3]$'
+       
+if [ -z "$1" ]; then
+    #If no parameter is passed, rotate 90 degrees clockwise
+    #Assume if wacom is rotated, the others are too (xrandr is too awkward for getting current rotation output)
+    CURRENT_ORIENTATION="$(xsetwacom get "${WACOM[0]}" rotate)"
+    case $CURRENT_ORIENTATION in
+        "none")
+            TARGET_NUMERIC=1
+            ;;
+        "cw")
+            TARGET_NUMERIC=2
+            ;;
+        "half")
+            TARGET_NUMERIC=3
+            ;;
+        "ccw")
+            TARGET_NUMERIC=0
+            ;;
+    esac
+elif [[ $1 =~ $NO_RE ]]; then
+    TARGET_NUMERIC=$1
+else
+    case $1 in
+        "normal")
+            TARGET_NUMERIC=0
+            ;;
+        "right")
+            TARGET_NUMERIC=1
+            ;;
+        "inverted")
+            TARGET_NUMERIC=2
+            ;;
+        "left")
+            TARGET_NUMERIC=3
+            ;;
+        *)
+            TARGET_NUMERIC=0
+            ;;
+    esac
+fi
+
+rotate $TARGET_NUMERIC
